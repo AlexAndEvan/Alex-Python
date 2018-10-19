@@ -1,2 +1,2 @@
-# Alex-Python
+# AlexPython
 Learning Python
