@@ -1,4 +1,10 @@
 from enum import Enum
+from copy import deepcopy
+
+log_message = False
+def log(message):
+    if log_message:
+        print(message)
 
 class BlockData:
     row_unused_numbers = set()
@@ -8,13 +14,41 @@ class BlockData:
    
 full_set = set(range(1, 10))
 
-class Sudoku:
-
-    def __init__(self, data):
-        self.init_data = data
-        self.result = data
-        self.block_data = {}
-
+class SudokuSolver:
+    @staticmethod
+    def solve_sudoku(sudoku):
+        local_copy = deepcopy(sudoku)
+        log("deep copy input sudoku:")
+        log(local_copy)
+        block_data_map = SudokuSolver.analyze_sudoku(local_copy)
+        if len(block_data_map) == 0:
+            print('Solved:')
+            SudokuSolver.print_result(local_copy)
+            return True
+        
+        sorted_block_data_list = sorted(block_data_map.items(), key=lambda kv: len(kv[1].cell_unused_numbers)) 
+        
+        # We end up with a cell that have no number available to assign to it, deadend -- backtrack
+        if len(sorted_block_data_list[0][1].cell_unused_numbers) == 0:
+            log('Backtrack...')
+            return False
+        
+        (i, j) = sorted_block_data_list[0][0]
+        block_data = sorted_block_data_list[0][1]
+        choose_number_from = list(block_data.cell_unused_numbers)
+        for number_to_fill in choose_number_from:
+            log('choose a number from:' + str(choose_number_from))
+            log('Set value for (' + str(i) + ', ' + str(j) + '): ' + str(number_to_fill))
+            #set the number to fill in cell (i, j)
+            local_copy[i][j] = number_to_fill
+            if SudokuSolver.solve_sudoku(local_copy):
+                return True
+        # We tried all possible numbers and still can not find a solution
+        return False
+    
+    @staticmethod
+    def analyze_sudoku(sudoku):
+        block_data = {}
         #process row data
         row_index = 0
         while row_index < 9:
@@ -22,16 +56,18 @@ class Sudoku:
             empty = []
             used = set()
             while i < 9:
-                if data[row_index][i] == 0:
+                if sudoku[row_index][i] == 0:
                     empty.append(i)
                 else:
-                    used.add(data[row_index][i])
+                    used.add(sudoku[row_index][i])
                 i += 1
             unused_numbers = full_set.difference(used)
             for k in empty:
-                self.block_data[(row_index, k)] = BlockData()
-                self.block_data[(row_index, k)].row_unused_numbers = unused_numbers
+                block_data[(row_index, k)] = BlockData()
+                block_data[(row_index, k)].row_unused_numbers = unused_numbers
             row_index += 1
+        if len(block_data) == 0:
+            return block_data
         #process column data
         column_index = 0
         while column_index < 9:
@@ -39,14 +75,14 @@ class Sudoku:
             empty = []
             used = set()
             while i < 9:
-                if data[i][column_index] == 0:
+                if sudoku[i][column_index] == 0:
                     empty.append(i)
                 else:
-                    used.add(data[i][column_index])
+                    used.add(sudoku[i][column_index])
                 i += 1
             unused_numbers = full_set.difference(used)
             for k in empty:
-                self.block_data[(k, column_index)].column_unused_numbers = unused_numbers
+                block_data[(k, column_index)].column_unused_numbers = unused_numbers
             column_index += 1
         #process block data
         row_index = 0
@@ -59,47 +95,23 @@ class Sudoku:
                 while i < (row_index + 1) * 3:
                     j = column_index * 3
                     while j < (column_index + 1) * 3:
-                        if data[i][j] == 0:
+                        if sudoku[i][j] == 0:
                             empty.append((i, j))
                         else:
-                            used.add(data[i][j])
+                            used.add(sudoku[i][j])
                         j += 1
                     i += 1
                 unused_numbers = full_set.difference(used) 
                 for k in empty:
-                    self.block_data[k].block_unused_numbers = unused_numbers
+                    block_data[k].block_unused_numbers = unused_numbers
                 column_index += 1
             row_index += 1
-        for key, block_data in self.block_data.items():
-            block_data.cell_unused_numbers = block_data.row_unused_numbers.intersection(\
-                block_data.column_unused_numbers, block_data.block_unused_numbers)
+        for key, value in block_data.items():
+            value.cell_unused_numbers = value.row_unused_numbers.intersection(\
+                value.column_unused_numbers, value.block_unused_numbers)
+        return block_data   
 
-    def solve_sudoku(self):
-        while len(self.block_data) > 0:
-            sorted_block_data = sorted(self.block_data.items(), key=lambda kv: len(kv[1].cell_unused_numbers)) 
-            only_choices = list(filter(lambda x: len(x[1].cell_unused_numbers) == 1, sorted_block_data))
-            if len(only_choices) > 0:
-                self.update_blocK_data_for_only_choices(only_choices)
-            else:
-                print('Has to make guess now...')
-                break
-        if len(self.block_data) > 0:
-            print('can not solve it without out guessing and backtracking... partial result:')
-        for row in self.result:
+    @staticmethod
+    def print_result(sudoku):
+        for row in sudoku:
             print(row)
-
-    def update_blocK_data_for_only_choices(self, only_choices):
-        for only_choice in only_choices:
-            (i, j) = only_choice[0]
-            block_data = only_choice[1]
-            number_to_fill = list(block_data.cell_unused_numbers)[0]
-            print('Find value for (' + str(i) + ', ' + str(j) + '): ' + str(number_to_fill))
-            #set the number in cell (i, j)
-            self.result[i][j] = number_to_fill
-            self.block_data[(i,j)].row_unused_numbers.remove(number_to_fill)
-            self.block_data[(i,j)].column_unused_numbers.remove(number_to_fill)
-            self.block_data[(i,j)].block_unused_numbers.remove(number_to_fill)
-            self.block_data.pop((i,j))
-        for key, block_data in self.block_data.items():
-            block_data.cell_unused_numbers = block_data.row_unused_numbers.intersection(\
-                block_data.column_unused_numbers, block_data.block_unused_numbers)
