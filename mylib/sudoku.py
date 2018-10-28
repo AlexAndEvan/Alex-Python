@@ -115,3 +115,4 @@ class SudokuSolver:
     def print_result(sudoku):
         for row in sudoku:
             print(row)
+        print('------------------------------')

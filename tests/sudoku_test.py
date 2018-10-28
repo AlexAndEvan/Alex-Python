@@ -18,10 +18,11 @@ class TestStringMethods(unittest.TestCase):
         i = 0
         index = 1
         while(i < 50):
-            print(lines[index - 1])
+            print(lines[index - 1].strip('\n'))
             raw_data = lines[index:index+9]
             index += 10
             data = [[int(y) for y in list(x[:-1])] for x in raw_data]
+            SudokuSolver.print_result(data)
             if not SudokuSolver.solve_sudoku(data):
                 print('Can not find a solution.')
             i += 1
